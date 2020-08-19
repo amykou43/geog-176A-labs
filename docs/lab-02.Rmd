@@ -1,0 +1,177 @@
+---
+title: "Geography 176A"
+author: "[Amy Kou](https://amykou43.github.io/amykoku43/)"
+subtitle: 'Lab 03: COVID-19 Pandemic'
+output:
+  html_document:
+    theme: journal
+---
+
+```{r}
+
+library(tidyverse)
+library(knitr)
+library(readxl)
+library(zoo)
+
+url = 'https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv' 
+
+covid = read_csv(url)
+
+PopulationEstimates = read_excel("~/Downloads/PopulationEstimates.xls", skip = 2) %>% 
+  select(fips = FIPStxt, Area_Name, pop2019 = POP_ESTIMATE_2019)
+
+state.of.interest = "California"
+
+```
+
+```{r}
+new = covid %>%
+  filter(state == state.of.interest) %>%
+  group_by(county) %>%
+  mutate(newCases = cases - lag(cases)) %>%
+  ungroup() 
+
+ 
+ 
+(most_new_cases = new %>%
+    filter(date == max(date)) %>% 
+    slice_max(newCases, n = 5) %>%
+    select(county, newCases)) # table #1
+
+knitr::kable(most_new_cases, caption = 'Most New Cases California Counties',
+             col.names = c("County", "New Cases"),
+             format.args = list(big.mark = ",")) #table #1
+
+```
+
+```{r}
+
+(most_cumulative_cases = new %>%
+    filter(date == max(date)) %>% 
+    slice_max(cases, n = 5) %>%
+    select(county, cases)) # table #2
+
+knitr::kable(most_cumulative_cases, caption = 'Most Cumulative Cases California Counties',
+             col.names = c("County", "Cum Cases"),
+             format.args = list(big.mark = ",")) #table #2
+```
+
+## Attributes of Population Estimates
+names of columns
+dimension: 3275 x 165
+number of rows: 3275
+structure: tibble/data frame
+
+
+```{r, eval = FALSE}
+
+colnames(PopulationEstimates) #names of columns (They're all just numbers to 165 except first column) 
+dim(PopulationEstimates) #dimensions: 3275 x 165
+nrow(PopulationEstimates) #number of rows: 3275
+str(PopulationEstimates) #tibble
+```
+
+```{r}
+
+jd = inner_join(new, PopulationEstimates, by = "fips")
+```
+
+```{r}
+
+dat = jd %>%
+  filter(state == state.of.interest) %>%
+  group_by(county) %>%
+  mutate(newCasesCapita = (cases - lag(cases))/pop2019,
+         casePerCapita = cases / pop2019) %>%
+  ungroup() 
+
+(most_new_cases_capita = dat %>%
+     filter(date == max(date)) %>% 
+    slice_max(newCasesCapita, n = 5) %>%
+    select(county, newCasesCapita)) 
+
+knitr::kable(most_new_cases_capita, caption = 'Most New Cases per capita California Counties',
+             col.names = c("County", "New Cases per Capita"),
+             format.args = list(big.mark = ",")) #table #1
+
+(most_cumulative_capita = dat %>%
+     filter(date == max(date)) %>% 
+    slice_max(casePerCapita, n = 5) %>%
+    select(county, casePerCapita))
+
+knitr::kable(most_cumulative_capita, caption = 'Most cumulative per capita California Counties',
+             col.names = c("County", "Cumulative Cases per Capita"),
+             format.args = list(big.mark = ",")) #table #2
+  
+```
+
+
+```{r}
+jd %>% 
+  filter(date >= max(date) - 13) %>% 
+  group_by(county) %>% 
+  summarize(totCases = sum(newCases) / (pop2019[1]/100000)) %>% 
+  filter(totCases <=  100)
+  
+```
+```{r}
+dat %>%
+  summarize(totCases = sum(cases))
+
+dat %>%
+  summarize(totnewCases = sum(newCases, na.rm = TRUE))
+
+```
+## The total number of cases is 29381287 and total number of new cases is 634918 and the total number of safe counties is 12. 
+
+```{r}
+state.of.interest = c("California", "New York", "Louisiana", "Florida")
+
+to_plot = covid %>%
+  filter(state %in% state.of.interest) %>%
+  group_by(state, date) %>%
+  summarise(dailyCases = sum(cases)) %>%
+  left_join(PopulationEstimates, 
+            by = c("state" = "Area_Name")) %>% 
+  group_by(state) %>%
+  mutate(newCases = dailyCases - lag(dailyCases),
+        roll7 = rollmean(newCases, 7, fill = NA,   align="right"))  
+
+#Plot 1  
+ggplot(to_plot, aes(x = date)) +  
+  geom_col(aes(y = newCases), col = NA, fill = "#F5B8B5") +  
+  geom_line(aes(y = roll7), col = "darkred", size = 1) +  
+  ggthemes::theme_wsj() + 
+  facet_wrap(~state) + 
+  labs(title = "New Cases: COVID-19") +  
+  theme(plot.background = element_rect(fill = "white"),  
+        panel.background = element_rect(fill = "white"),  
+        plot.title = element_text(size = 14, face = 'bold')) +  
+  theme(aspect.ratio = .5)
+
+
+to_plot = to_plot %>% 
+  mutate(nC_pc = newCases / pop2019,
+         nC_pc_roll = rollmean(nC_pc, 7, fill = NA, align = "right"))
+
+#Plot 2
+ggplot(to_plot, aes(x = date)) +  
+  geom_col(aes(y = nC_pc), col = NA, fill = "#F5B8B5") +  
+  geom_line(aes(y = nC_pc_roll), col = "darkblue", size = 1) +  
+  ggthemes::theme_wsj() + 
+  facet_wrap(~state) + 
+  labs(title = "New Cases per capita: COVID-19") +  
+  theme(plot.background = element_rect(fill = "yellow"),  
+        panel.background = element_rect(fill = "yellow"),  
+        plot.title = element_text(size = 14, face = 'bold')) +  
+  theme(aspect.ratio = .6)
+
+```
+
+## I think the scaling made some states worse and some states better. For example, for California the slope looked a lot more prevalent in New Cases but after being scaled by its huge population, it seemed less severe represented by a smaller looking slope. Louisiana had the oppoisite effect. The slope appeared bigger after being scaled with population. I think that is because its population is small. 
+
+
+
+
+
