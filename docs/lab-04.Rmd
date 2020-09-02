@@ -1,0 +1,281 @@
+---
+title: "Geography 176A"
+author: "[Amy Kou](https://amykou43.github.io/amykou43/)"
+subtitle: 'Lab 04: Tesselations, Point-in-Polygon'
+output:
+  html_document:
+    theme: journal
+---
+
+```{r, warning = FALSE, message = FALSE}
+library(sf)
+library(USAboundaries)
+library(rmapshaper)
+library(tidyverse)
+library(readxl)
+library(gghighlight)
+library(leaflet)
+library(leafpop)
+
+```
+
+## Question 1: 
+```{r, warning = FALSE, message = FALSE}
+#1.1
+CONUS = USAboundaries::us_counties()
+
+counties = CONUS %>%
+  filter(!state_name %in% c("Alaska", "Hawaii", "Puerto Rico")) %>%
+ # st_union() %>%
+  st_transform(5070)
+
+#1.2
+centroid = st_centroid(counties) %>%
+  st_union()
+
+#1.3
+v_grid = st_voronoi(centroid) %>% #voronoi
+  st_cast() %>%
+  st_as_sf() %>%
+  mutate(id = 1:n())
+
+t_grid = st_triangulate(centroid) %>% #triangulated
+  st_cast() %>%
+  st_as_sf() %>%
+  mutate(id = 1:n())
+
+sq_grid = st_make_grid(counties, n = c(70,50)) %>% #square grid
+  st_as_sf() %>%
+  st_cast() %>%
+  mutate(id = 1:n())
+
+hex_grid = st_make_grid(counties, n = c(70,50), square = FALSE) %>% #hexagonal grid
+  st_as_sf() %>%
+  st_cast() %>%
+  mutate(id = 1:n())
+
+#1.4
+t_grid = st_intersection(t_grid, st_union(counties)) #triangulated
+
+sq_grid = st_intersection(sq_grid, st_union(counties)) #square
+
+hex_grid = st_intersection(hex_grid, st_union(counties)) #hexagonal
+
+v_grid = st_intersection(v_grid, st_union(counties)) #Voronoi
+
+#1.5
+
+CONUS_simp = ms_simplify(st_union(counties), keep = 0.05)
+
+plot(CONUS_simp)
+mapview::npts #function
+
+CONUS_pts = mapview::npts(CONUS) #56558
+CONUS_simp_pts = mapview::npts(CONUS_simp) #161
+
+```
+
+```{r, warning = FALSE, message = FALSE}
+#1.6
+plot_tess = function(data, title){
+  ggplot() +
+    geom_sf(data = data, fill = "white", col = "navy", size = .2) +
+    theme_void() +
+    labs(title = title, caption = paste("This tesselation has:", nrow(data), "tiles" )) +
+    theme(plot.title = element_text(hjust = .5, color =  "navy", face = "bold"))
+}
+
+t_grid = st_intersection(t_grid, st_union(counties)) #triangulated
+plot_tess(t_grid, "triangulation coverage")
+
+sq_grid = st_intersection(sq_grid, st_union(counties))
+plot_tess(sq_grid, "Square coverage")  #square
+
+hex_grid = st_intersection(hex_grid, st_union(counties)) #hexagonal
+plot_tess(hex_grid, "Hexagonal coverage")
+
+v_grid = st_intersection(v_grid, st_union(counties)) #Voronoi
+plot_tess(v_grid, "Voronoi coverage")
+
+
+
+#1.7: The 5 plots
+
+plot_tess(t_grid, "triangulated coverage")
+plot_tess(sq_grid, "square coverage")
+plot_tess(hex_grid, "Hexagonalcoverage")
+plot_tess(v_grid, "Voronoi coverage")
+plot_tess(data = counties, "Original")
+
+```
+
+## Question 2
+```{r, warning = FALSE, message = FALSE}
+
+#2.1
+sum_tess = function(data, title) {
+  area = st_area(data) %>% 
+    units::set_units("km2") %>%
+    units::drop_units()
+  
+  area_df = data.frame(title, length(title), mean(area), sd(area), sum(area))
+  
+  return(area_df)
+}
+
+#2.2 & 2.3
+tess_summary = bind_rows(
+  sum_tess(counties, "Counties"),
+  sum_tess(v_grid, "Voroni"),
+  sum_tess(t_grid, "Triangulated"),
+  sum_tess(sq_grid, "Square Grid"),
+  sum_tess(hex_grid, "Hexagonal"))
+
+#2.4
+knitr::kable(tess_summary,
+             caption = "Tesselation Summary",
+             col.names = c("Tesselation", "Number of Features", "Mean Area", "Standard Deviation of Features", "Total Area"), format.args = list(big.mark = ",")) %>%
+  kableExtra::kable_styling("striped", full_width = TRUE)
+
+```
+
+#2.5 
+We can see that the voronoi is most similar to the original. Triangulated tessellation has most features.
+Hexagonal tessellation has least features.
+
+## Question 3
+
+```{r, warning = FALSE, message = FALSE}
+
+#3.1 
+
+NID2019_U = read_excel("~/github/geog-176A-labs/data/NID2019_U.xlsx") %>%
+  filter(!is.na(LONGITUDE), !is.na(LATITUDE)) 
+
+sf_NID2019_U = NID2019_U %>% 
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4326) %>%
+  st_transform(5070)
+
+```
+
+```{r, warning = FALSE, message = FALSE}
+
+#3.2
+point_in_polygon = function(points, polygon, id){
+  st_join(polygon, points) %>%
+    st_drop_geometry() %>%
+    count(.data[[id]]) %>%
+    setNames(c(id, "n")) %>%
+    left_join(polygon, by = id) %>%
+    st_as_sf()
+}
+
+```
+
+```{r, warning = FALSE, message = FALSE}
+
+#3.3
+counties_pip = point_in_polygon(sf_NID2019_U, counties, "geoid")
+v_pip = point_in_polygon(sf_NID2019_U, v_grid, "id")
+t_pip = point_in_polygon(sf_NID2019_U, t_grid, "id")
+sq_pip = point_in_polygon(sf_NID2019_U, sq_grid, "id")
+hex_pip = point_in_polygon(sf_NID2019_U, hex_grid, "id")
+
+```
+
+```{r, warning = FALSE, message = FALSE}
+
+#3.4
+plot_pip = function(data, title){
+  ggplot() +
+    geom_sf(data = data, aes(fill = log(n)), alpha = .9, size = .2, col = NA) +
+    scale_fill_viridis_c() +
+    theme_void() +
+    theme(plot.title = element_text(face = "bold", color = "navy", hjust = .5, size = 20)) +
+    labs(title = title,caption = paste0(sum(data$n), " dams represented"))
+}
+
+```
+
+```{r, warning = FALSE, message = FALSE}
+
+#3.5
+plot_pip(counties_pip, "Original")
+plot_pip(v_pip, "Voronoi")
+plot_pip(t_pip, "Triangulation")
+plot_pip(sq_pip, "Square Grid")
+plot_pip(hex_pip, "Hexagon Grid")
+
+```
+
+#3.6
+Again, the voronoi is most similar to original data. I will choose voronoi because I think it has the
+best coverage. The other ones do not have as much detail.
+
+```{r, warning = FALSE, message = FALSE}
+#4.1
+# I chose the ones with the most dams because they seem to be the most important issues.
+unique(sf_NID2019_U$PURPOSES) %>%
+  length
+
+rec_dams = sf_NID2019_U %>%
+  filter(grepl("R", sf_NID2019_U$PURPOSES) == TRUE) #recreation
+r_pip = point_in_polygon(rec_dams, v_grid, "id")
+  
+flood_dams = sf_NID2019_U %>%
+  filter(grepl("C", sf_NID2019_U$PURPOSES) == TRUE) #Flood control
+f_pip = point_in_polygon(flood_dams, v_grid, "id")
+
+fire_dams = sf_NID2019_U %>%
+  filter(grepl("P", sf_NID2019_U$PURPOSES) == TRUE) #Fire protection
+p_pip = point_in_polygon(fire_dams, v_grid, "id")
+
+water_dams = sf_NID2019_U %>%
+  filter(grepl("S", sf_NID2019_U$PURPOSES) == TRUE) #Water Supply
+w_pip = point_in_polygon(water_dams, v_grid, "id")
+
+```
+
+```{r, warning = FALSE, message = FALSE}
+
+plot_pip(r_pip, "Recreation Dams") +
+  gghighlight(n > (mean(n) + sd(n)))
+plot_pip(f_pip, "Flood Control Dams") +
+  gghighlight(n > (mean(n) + sd(n)))
+plot_pip(p_pip, "Fire protection Dams") +
+  gghighlight(n > (mean(n) + sd(n)))
+plot_pip(w_pip, "Fish and Wildlife Dams") +
+  gghighlight(n > (mean(n) + sd(n)))
+
+```
+
+# Extra Credit
+
+```{r, warning = FALSE, message = FALSE}
+
+rivers = read_sf("~/github/geog-176A-labs/data/majorrivers_0_0")
+rivers = rivers %>%
+  filter(SYSTEM == "Mississippi")
+
+# Filter to the largest/high hazard dam in each state
+dams = NID2019_U %>%
+  filter(HAZARD == "H", grepl("C", PURPOSES)) %>%
+  group_by(STATE) %>%
+  slice_max(NID_STORAGE) 
+
+dam_labels = dams %>%
+  select("DAM_NAME", "NID_STORAGE", "PURPOSES", "YEAR_COMPLETED")
+
+radius = dams %>% 
+  mutate(radius = NID_STORAGE / 1500000) %>% 
+  select(radius)
+
+avector = as.vector(radius$radius)
+
+leaflet(data = dams) %>% 
+  addProviderTiles(providers$CartoDB) %>% 
+  addCircleMarkers(color = "red", fillOpacity = 1, stroke = FALSE, popup = leafpop::popupTable(dam_labels, feature.id = FALSE), radius = avector) %>% 
+  addPolylines(data = rivers) 
+
+
+```
