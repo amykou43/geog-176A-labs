@@ -1,0 +1,202 @@
+---
+title: "Geography 176A"
+author: "[Amy Kou](https://amykou43.github.io/amykou43/)"
+subtitle: 'Lab 05: Rasters & Remote Sensing'
+output:
+  html_document:
+    theme: journal
+---
+
+```{r, warning = FALSE, message = FALSE}
+
+library(raster) # Raster Data handling
+library(tidyverse) # Data Manipulation
+library(getlandsat) # keyless Landsat data (2013-2017)
+library(sf) # Vector data processing
+library(mapview) # Rapid Interactive visualization
+library(leaflet)
+
+
+```
+
+```{r, warning = FALSE, message = FALSE}
+
+# 1: First we need to identify an AOI. We want to be able to extract the flood extents for Palo, Iowa and its surroundings
+
+bb = read_csv("~/github/geog-176A-labs/data/uscities.csv") %>%
+  filter(city == "Palo") %>%
+  st_as_sf(coords = c("lng", "lat"), crs = 4326) %>%
+  st_transform(5070) %>%
+  st_buffer(5000) %>%
+  st_bbox() %>%
+  st_as_sfc() %>%
+  st_as_sf()
+
+```
+
+```{r, warning = FALSE, message = FALSE}
+
+#2
+
+meta = read_csv("~/github/geog-176A-labs/data/palo-flood-scene.csv")
+files = lsat_scene_files(meta$download_url) %>%
+  filter(grepl(paste0("B",1:6,".TIF$", collapse = "|"), file)) %>%
+  arrange(file) %>%
+  pull(file)
+st = sapply(files, lsat_image)
+s = stack(st) %>%
+  setNames(paste0("band", 1:6))
+plot(s)
+
+cropper = bb %>% st_transform(crs(s))
+r = crop(s, cropper)
+
+```
+
+The dimensions of the stacked image is 7811 by 7681, the crs is WGS84, and the resolution is 30 by 30.
+
+```{r, warning = FALSE, message = FALSE}
+
+r = r %>% 
+  setNames(c("Coastal Aerosol", "Blue", "Green", "Red", "Near Infrared", "SWIR 1"))
+plot(r)
+
+```
+
+The dimensions of the cropped image is 340 by 346, the crs is WGS84, and the resolution is still 30 by 30.
+
+```{r, warning = FALSE, message = FALSE}
+
+#3
+
+plotRGB(r, r = 4, g = 3, b = 2)
+print("R-G-B (natural color)")
+plotRGB(r, r = 5, g = 4, b = 3)
+print("NIR-R-G(fa) (color infrared)")
+plotRGB(r, r = 5, g = 6, b = 4)
+print("NIR-SWIR1-R (false color water focus)")
+plotRGB(r, r = 7, g = 6, b = 4)
+
+```
+
+```{r, warning = FALSE, message = FALSE}
+
+plotRGB(r, r = 4, g = 3, b = 2, stretch = "hist")
+print("R-G-B (natural color)")
+plotRGB(r, r = 5, g = 4, b = 3, stretch = "lin")
+print("NIR-R-G(fa) (color infrared)")
+plotRGB(r, r = 5, g = 6, b = 4, stretch = "lin")
+print("NIR-SWIR1-R (false color water focus)")
+plotRGB(r, r = 7, g = 6, b = 4, stretch = "hist")
+
+```
+
+The stretch function increases the range of pixel brightness values, which increases the color range and contrast of the image. 
+
+```{r, warning = FALSE, message = FALSE}
+
+#4
+
+ndvi = (r$Near.Infrared - r$Red) / (r$Near.Infrared + r$Red)
+ndwi = (r$Green - r$Near.Infrared) / (r$Green + r$Near.Infrared)
+mndwi = (r$Green - r$SWIR.1) / (r$Green + r$SWIR.1)
+wri = (r$Green + r$Red) / (r$Near.Infrared + r$SWIR.1)
+swi = 1 / (sqrt(r$Blue - r$SWIR.1))
+stack = stack(ndvi, ndwi, mndwi, wri, swi) %>% 
+  setNames(c("NDVI", "NDWI", "MNDWI", "WRI", "SWI"))
+palette = colorRampPalette(c("blue","white","red"))
+plot(stack, col = palette(256))
+
+```
+
+These images show different ways of representing the flood data. The maps are similar in that they all visually separate the surface water data from other land forms, but differ in how the surface water and surrounding area appear visually. The NDVI threshold makes it easy to visualize photosynthetic activity, and so brings out vegetation and agricultural land. NDWI, MNDWI, WRI, and SWI all enhance surface water data, but use different threshold formulas. NDWI uses the green and NIR bands in its formula, and so agricultural areas in the land still appear different from other land. MNDWI, WRI, and SWI, however, all use the SWIR1 band in their formulas which creates a more defined separation between all dry land and water.
+
+```{r, warning = FALSE, message = FALSE}
+
+thresholding1 = function(x){ifelse(x <= 0,1, 0)}
+thresholding2 = function(x){ifelse(x >= 0,1, 0)}
+thresholding3 = function(x){ifelse(x >= 1,1, 0)}
+thresholding4 = function(x){ifelse(x <= 5,1, 0)}
+thresholding5 = function(x){ifelse(is.na(x), 0, 1)}
+flood1 = calc(ndvi, thresholding1)
+flood2 = calc(ndwi, thresholding2)
+flood3 = calc(mndwi, thresholding2)
+flood4 = calc(wri, thresholding3)
+flood5 = calc(swi, thresholding4)
+flood5 = calc(swi, thresholding5)
+stack1 = stack(flood1, flood2, flood3, flood4, flood5) %>% 
+  setNames(c("NDVI", "NDWI", "MNDWI", "WRI", "SWI")) 
+plot(stack1, colNA = "white", col = c("white","blue"))
+
+```
+
+```{r, warning = FALSE, message = FALSE}
+
+#5
+
+set.seed(09032020)
+values = getValues(r)
+dim(values)
+```
+
+In terms of the dimensions of the extracted values, there are 117,640 rows and 6 columns, one column for each different band of the raster stack.  This shows that the data was extracted cell-by-cell for each of the methods as there are 6,705,840 points (117,640 cells for each method).
+
+
+```{r,warning=F,message=F,echo=F}
+
+values = na.omit(values)
+extract = kmeans(values, 12, iter.max = 100)
+kmeans_raster = r$Coastal.Aerosol
+values(kmeans_raster) = extract$cluster
+values1 = values(stack1$NDVI)
+table1 = table(values1, values(kmeans_raster))
+idx = which.max(table1[2,])
+threshold6 = function(x){ifelse(x == idx, 1, 0)}
+flood6 = calc(kmeans_raster, threshold6)
+stack1 = addLayer(stack1, flood6)
+names(stack1)[6] = "K Means"
+plot(stack1, colNA = "white", col = c("white","blue"))
+
+
+```
+
+```{r, warning = FALSE, message = FALSE}
+
+#6
+
+kabletable = cellStats(stack1, sum)
+knitr::kable(kabletable, caption = "Number of Flooded Cells per Image", col.names = c("Number"))
+```
+
+Since we know that each cell has a resolution of 30 meters by 30 meters, each cell has an area of 900 meters squared.  We then multiply 900 by the number of cells to get the total flooded area in each image.
+
+
+```{r,warning=F,message=F,echo=F}
+
+areakable = kabletable * 900
+knitr::kable(areakable, caption = "Area of Flooded Cells (m^2)", col.names = c("Area"))
+
+```
+<center>
+```{r,warning=F,message=F,echo=F}
+
+sumraster = calc(stack1, fun=sum)
+plot(sumraster, col = blues9)
+
+```
+
+
+# Extra Credit 
+
+```{r, warning = FALSE, message = FALSE}
+
+point = st_point(c(-91.78959, 42.06305)) %>% 
+  st_sfc(crs = 4326) %>% 
+  st_transform(crs(stack1)) %>% 
+  as_Spatial()
+print("Lng = -91.78959, Lat = 42.06305")
+raster::extract(stack1, point)
+
+```
+As you can see below, in each of the layers, the value at this point is 1 which means that all of the layers capture flooding at this specific location.
+
