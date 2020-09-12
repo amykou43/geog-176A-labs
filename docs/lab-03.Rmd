@@ -8,7 +8,7 @@ output:
 ---
 
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 # SPDS
 library(tidyverse)
 library(sf)
@@ -26,7 +26,7 @@ library(knitr)
 
 
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 # remotes::install_github("ropensci/USAboundaries")
 # remotes::install_github("ropensci/USAboundariesData")
@@ -62,14 +62,14 @@ countries = rnaturalearth::countries110 %>%
 
 #1.4
 
-cities <- read_csv("uscities.csv") %>%
+cities <- read_csv("~/github/geog-176A-labs/data/uscities.csv") %>%
   st_as_sf(coords = c("lng", "lat"), crs = 4326) %>%
   filter(!state_name %in% c("Alaska", "Hawaii", "Puerto Rico")) %>%
   st_transform(eqdc)
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 #2.1
 
@@ -88,7 +88,7 @@ Top5 = cities %>%
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 #Table of top 5 farthest cities from US border 
 knitr::kable(Top5, caption = 'farthest cities from US border',
@@ -97,7 +97,7 @@ knitr::kable(Top5, caption = 'farthest cities from US border',
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 # 2.2
 
@@ -116,7 +116,7 @@ cities = cities %>%
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 #Table of top 5 farthest cities from state border 
 knitr::kable(Top5_state, caption = 'farthest cities from state border',
              col.names = c("city name", "state", "distance"),
@@ -125,7 +125,7 @@ knitr::kable(Top5_state, caption = 'farthest cities from state border',
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 # 2.3
 
@@ -146,7 +146,7 @@ mexico = countries %>%
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 #Table of top 5 farthest cities from Mexico border
 knitr::kable(Top5_mexico, caption = 'farthest cities from Mexico border',
              col.names = c("city name", "state", "distance"),
@@ -155,7 +155,7 @@ knitr::kable(Top5_mexico, caption = 'farthest cities from Mexico border',
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 # 2.4
 
@@ -176,7 +176,7 @@ canada = countries %>%
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 #Table of top 5 farthest cities from Canada border
 knitr::kable(Top5_canada, caption = 'farthest cities from Canada border',
              col.names = c("city name", "state", "distance"),
@@ -185,7 +185,7 @@ knitr::kable(Top5_canada, caption = 'farthest cities from Canada border',
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 # 3.1
 
@@ -208,7 +208,7 @@ ggplot() +
   
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 # 3.2
 
@@ -229,7 +229,7 @@ ggplot() +
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 # 3.3
 
@@ -249,7 +249,7 @@ ggplot() +
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 # 3.4
 cities = cities %>% 
@@ -273,7 +273,7 @@ ggplot() +
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 # 4.1
 border_pop = cities %>% 
@@ -292,7 +292,7 @@ knitr::kable(tibble(border_pop$population, total_pop$population, percent),
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 # 4.2
 
