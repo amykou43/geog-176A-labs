@@ -107,7 +107,7 @@ knitr::kable(most_cumulative_capita, caption = 'Most cumulative per capita Calif
 ```
 
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 jd %>% 
   filter(date >= max(date) - 13) %>% 
   group_by(county) %>% 
@@ -125,7 +125,7 @@ dat %>%
 ```
 ## The total number of cases is 29381287 and total number of new cases is 634918 and the total number of safe counties is 12. 
 
-```{r, warning = FALSE, message= FALSE}
+```{r, warning = FALSE, message= FALSE, echo = FALSE}
 state.of.interest = c("California", "New York", "Louisiana", "Florida")
 
 to_plot = covid %>%
