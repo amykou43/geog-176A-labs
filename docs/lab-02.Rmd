@@ -1,13 +1,13 @@
 ---
 title: "Geography 176A"
 author: "[Amy Kou](https://amykou43.github.io/amykoku43/)"
-subtitle: 'Lab 03: COVID-19 Pandemic'
+subtitle: 'Lab 02: COVID-19 Pandemic'
 output:
   html_document:
     theme: journal
 ---
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 library(tidyverse)
 library(knitr)
@@ -25,7 +25,7 @@ state.of.interest = "California"
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 new = covid %>%
   filter(state == state.of.interest) %>%
   group_by(county) %>%
@@ -45,7 +45,7 @@ knitr::kable(most_new_cases, caption = 'Most New Cases California Counties',
 
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 (most_cumulative_cases = new %>%
     filter(date == max(date)) %>% 
@@ -64,7 +64,7 @@ number of rows: 3275
 structure: tibble/data frame
 
 
-```{r, eval = FALSE}
+```{r, echo = FALSE, eval = FALSE, message= FALSE}
 
 colnames(PopulationEstimates) #names of columns (They're all just numbers to 165 except first column) 
 dim(PopulationEstimates) #dimensions: 3275 x 165
@@ -72,12 +72,12 @@ nrow(PopulationEstimates) #number of rows: 3275
 str(PopulationEstimates) #tibble
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 jd = inner_join(new, PopulationEstimates, by = "fips")
 ```
 
-```{r}
+```{r, echo = FALSE, message= FALSE}
 
 dat = jd %>%
   filter(state == state.of.interest) %>%
@@ -125,7 +125,7 @@ dat %>%
 ```
 ## The total number of cases is 29381287 and total number of new cases is 634918 and the total number of safe counties is 12. 
 
-```{r}
+```{r, warning = FALSE, message= FALSE}
 state.of.interest = c("California", "New York", "Louisiana", "Florida")
 
 to_plot = covid %>%
