@@ -7,7 +7,7 @@ output:
     theme: journal
 ---
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 library(raster) # Raster Data handling
 library(tidyverse) # Data Manipulation
@@ -19,7 +19,7 @@ library(leaflet)
 
 ```
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 # 1: First we need to identify an AOI. We want to be able to extract the flood extents for Palo, Iowa and its surroundings
 
@@ -32,9 +32,13 @@ bb = read_csv("~/github/geog-176A-labs/data/uscities.csv") %>%
   st_as_sfc() %>%
   st_as_sf()
 
+
 ```
 
-```{r, warning = FALSE, message = FALSE}
+
+## Loading in Images as Multiband Raster Object in R and Crop to Domain of AOI
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 #2
 
@@ -55,7 +59,7 @@ r = crop(s, cropper)
 
 The dimensions of the stacked image is 7811 by 7681, the crs is WGS84, and the resolution is 30 by 30.
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 r = r %>% 
   setNames(c("Coastal Aerosol", "Blue", "Green", "Red", "Near Infrared", "SWIR 1"))
@@ -65,7 +69,8 @@ plot(r)
 
 The dimensions of the cropped image is 340 by 346, the crs is WGS84, and the resolution is still 30 by 30.
 
-```{r, warning = FALSE, message = FALSE}
+##  RGB plots and Stretches
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 #3
 
@@ -93,7 +98,9 @@ plotRGB(r, r = 7, g = 6, b = 4, stretch = "hist")
 
 The stretch function increases the range of pixel brightness values, which increases the color range and contrast of the image. 
 
-```{r, warning = FALSE, message = FALSE}
+##  Utilizing Raster Algebra and Raster Thresholding
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 #4
 
@@ -111,7 +118,7 @@ plot(stack, col = palette(256))
 
 These images show different ways of representing the flood data. The maps are similar in that they all visually separate the surface water data from other land forms, but differ in how the surface water and surrounding area appear visually. The NDVI threshold makes it easy to visualize photosynthetic activity, and so brings out vegetation and agricultural land. NDWI, MNDWI, WRI, and SWI all enhance surface water data, but use different threshold formulas. NDWI uses the green and NIR bands in its formula, and so agricultural areas in the land still appear different from other land. MNDWI, WRI, and SWI, however, all use the SWIR1 band in their formulas which creates a more defined separation between all dry land and water.
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 thresholding1 = function(x){ifelse(x <= 0,1, 0)}
 thresholding2 = function(x){ifelse(x >= 0,1, 0)}
@@ -129,8 +136,8 @@ stack1 = stack(flood1, flood2, flood3, flood4, flood5) %>%
 plot(stack1, colNA = "white", col = c("white","blue"))
 
 ```
-
-```{r, warning = FALSE, message = FALSE}
+##  Using K-Means Algorithm to Group Raster Cells 
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 #5
 
@@ -160,7 +167,8 @@ plot(stack1, colNA = "white", col = c("white","blue"))
 
 ```
 
-```{r, warning = FALSE, message = FALSE}
+## Summary
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 #6
 
@@ -188,7 +196,7 @@ plot(sumraster, col = blues9)
 
 # Extra Credit 
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 point = st_point(c(-91.78959, 42.06305)) %>% 
   st_sfc(crs = 4326) %>% 
