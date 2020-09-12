@@ -1,0 +1,141 @@
+---
+title: "lab-06"
+author: "Amy Kou"
+date: "9/12/2020"
+output: html_document
+---
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
+
+library(sf)        # vector manipulation
+library(raster)    # raster manipulation
+library(fasterize) # "faster" raster
+library(whitebox) # terrain analysis
+library(dplyr)
+library(tidyverse)
+library(gifski)
+library(knitr)
+
+# Data libraries
+library(osmdata)   # OSM API
+library(elevatr)   # Elevation  Web Tiles
+
+```
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
+
+basin  = read_sf("https://labs.waterdata.usgs.gov/api/nldi/linked-data/nwissite/USGS-11119750/basin/")
+write_sf(basin, dsn = "data/USGS-11119750.gpkg")
+
+elev  = elevatr::get_elev_raster(basin, z = 13, units = "feet") %>% 
+  crop(basin) %>%
+  mask(basin)
+
+writeRaster(elev, filename = "data/basin-elev.tif", overwrite = TRUE)
+elev_raster = raster("data/basin-elev.tif")
+
+bb_basin = st_bbox(basin) %>%
+  st_as_sfc() %>%
+  st_transform(4326)
+
+osm = osmdata::opq(bb_basin) %>% 
+  add_osm_feature(key = 'building') %>% 
+  osmdata_sf()
+
+buildings = osm$osm_polygons %>%
+  st_transform(crs(basin)) %>%
+  st_intersection((basin)) %>%
+  st_centroid()
+
+buildings = osm$osm_polygons %>%
+  st_transform(crs(basin)) %>%
+  st_intersection((basin)) %>%
+  st_centroid()
+
+railway = buildings %>% 
+  dplyr::filter(amenity == "railway")
+
+osm3 = osmdata::opq(bb_basin) %>% 
+  add_osm_feature(key = 'waterway', value = "stream") %>%
+  osmdata_sf() 
+
+stream = osm3$osm_lines
+
+stream = stream %>%
+  st_transform(crs(basin)) %>%
+  st_intersection(basin)
+
+```
+
+# Terrain Analysis
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
+
+# Create hillshade raster
+wbt_hillshade("data/basin-elev.tif", "data/basin-hillshade.tif")
+
+```
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
+
+hill_r = raster("data/basin-hillshade.tif")
+plot(hill_r, axes = FALSE, box = FALSE, col = gray.colors(256, alpha = 0.5), main = "Hillshade", legend = FALSE)
+plot(stream, add = TRUE, col = "blue")
+
+stream_raster = stream %>%
+  st_transform(5070) %>%
+  st_buffer(10) %>%
+  st_transform(crs(elev_raster))
+
+stream_raster = fasterize::fasterize(stream_raster, elev_raster)
+
+writeRaster(stream_raster, filename = "data/stream_elev.tif", overwrite = TRUE)
+stream_raster = raster("data/stream_elev.tif")
+
+```
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE}
+
+
+wbt_breach_depressions("data/basin-elev.tif", "data/corrected-surface.tif")
+
+wbt_elevation_above_stream("data/corrected-surface.tif", "data/stream_elev.tif", "data/HAND.tif" )
+```
+
+```{r, message = FALSE, warning = FALSE, echo=FALSE}
+
+
+HAND = raster("data/HAND.tif" ) 
+HAND = HAND + 3.69
+stream_raster = raster("data/stream_elev.tif")
+
+HAND[stream_raster == 1] = 0
+
+writeRaster(HAND, filename = "data/HAND_offset.tif", overwrite = TRUE)
+```
+
+## 2017 Impact Assessment 
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
+
+HAND_offset = raster("data/HAND_offset.tif")
+
+HAND_offset[HAND_offset > 10.02] = NA
+plot(hill_r, axes = FALSE, box = FALSE, col = gray.colors(256, alpha = 0.5), legend = FALSE)
+plot(HAND_offset, add = TRUE, col = rev(blues9))
+plot(railway, add = TRUE, col = "green", cex = 1, pch = 16)
+```
+
+
+
+```{r, warning = FALSE, message = FALSE, echo= FALSE}
+
+cols2 = ifelse(!is.na(raster::extract(HAND_offset, buildings)), "red", "black")
+stage = 10.02
+
+# Plot impacts
+plot(hill_r, axes = FALSE, box = FALSE, col = gray.colors(256, alpha = 0.5), legend = FALSE, main = paste(sum(cols2 =="red"), "Impacted Structures,", stage, "Foot Stage"), cex = 0.5)
+plot(HAND_offset, add = TRUE, col = rev(blues9))
+plot(buildings$geometry, add = TRUE, col = cols2, cex =  .08, pch = 16)
+plot(railway, add = TRUE, col = "green", cex = 1, pch = 16)
+```
+
+
