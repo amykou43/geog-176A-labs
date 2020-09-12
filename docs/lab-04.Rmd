@@ -7,7 +7,7 @@ output:
     theme: journal
 ---
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 library(sf)
 library(USAboundaries)
 library(rmapshaper)
@@ -20,7 +20,10 @@ library(leafpop)
 ```
 
 ## Question 1: 
-```{r, warning = FALSE, message = FALSE}
+
+Here we will prepare five tesselated surfaces from CONUS and write a function to plot them in a descriptive way.
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 #1.1
 CONUS = USAboundaries::us_counties()
 
@@ -75,7 +78,7 @@ CONUS_simp_pts = mapview::npts(CONUS_simp) #161
 
 ```
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo= FALSE}
 #1.6
 plot_tess = function(data, title){
   ggplot() +
@@ -109,8 +112,13 @@ plot_tess(data = counties, "Original")
 
 ```
 
+
+
 ## Question 2
-```{r, warning = FALSE, message = FALSE}
+
+In this question, we will write out a function to summarize our tessellated surfaces
+
+```{r, warning = FALSE, message = FALSE, echo= FALSE}
 
 #2.1
 sum_tess = function(data, title) {
@@ -145,7 +153,9 @@ Hexagonal tessellation has least features.
 
 ## Question 3
 
-```{r, warning = FALSE, message = FALSE}
+We will analyze the distributions of these dams (Q3) and their purpose (Q4) through using a point-in-polygon analysis
+
+```{r, warning = FALSE, message = FALSE, echo= FALSE}
 
 #3.1 
 
@@ -158,7 +168,7 @@ sf_NID2019_U = NID2019_U %>%
 
 ```
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo= FALSE}
 
 #3.2
 point_in_polygon = function(points, polygon, id){
@@ -172,7 +182,7 @@ point_in_polygon = function(points, polygon, id){
 
 ```
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 #3.3
 counties_pip = point_in_polygon(sf_NID2019_U, counties, "geoid")
@@ -183,7 +193,7 @@ hex_pip = point_in_polygon(sf_NID2019_U, hex_grid, "id")
 
 ```
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 #3.4
 plot_pip = function(data, title){
@@ -197,7 +207,7 @@ plot_pip = function(data, title){
 
 ```
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 #3.5
 plot_pip(counties_pip, "Original")
@@ -212,7 +222,7 @@ plot_pip(hex_pip, "Hexagon Grid")
 Again, the voronoi is most similar to original data. I will choose voronoi because I think it has the
 best coverage. The other ones do not have as much detail.
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 #4.1
 # I chose the ones with the most dams because they seem to be the most important issues.
 unique(sf_NID2019_U$PURPOSES) %>%
@@ -236,7 +246,7 @@ w_pip = point_in_polygon(water_dams, v_grid, "id")
 
 ```
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo= FALSE}
 
 plot_pip(r_pip, "Recreation Dams") +
   gghighlight(n > (mean(n) + sd(n)))
@@ -251,7 +261,9 @@ plot_pip(w_pip, "Fish and Wildlife Dams") +
 
 # Extra Credit
 
-```{r, warning = FALSE, message = FALSE}
+Map the Mississippi River System and show largest/high hazard dam in each state
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE}
 
 rivers = read_sf("~/github/geog-176A-labs/data/majorrivers_0_0")
 rivers = rivers %>%
